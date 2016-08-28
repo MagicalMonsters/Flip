@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<head>
+<script type="text/javascript" src="./kinetic-v5.0.1.min.js" > </script>
+<script type="text/javascript" src="./underscore-min.js" > </script>
+</head>
+<body>
+
+<div style="margin-left:auto; margin-right:auto; text-align:center;">
+<div id="container"></div>
+</div>
+<!-- <canvas id="canvas" width="500px" height="500px" style="background-color:black;"></canvas> -->
+	
+<script defer="defer">
+
+	L = console.log;
+
+	function testClicked () {
+		alert("testClicked");
+		for (var i = 0; i < board.cells.length; i++) {
+			for (var j = 0; j < board.cells[i].length; j++) {
+				console.log(Board.isVertical(board,i,j));
+			};
+		};
+	}
+
+	Board = {};
+
+	ColorMap = {
+				'.': "grey",
+				'#': "maroon",
+				A: "blue",
+				B: "green",
+				C: "yellow",
+				D: "orange",
+				E: "aqua",
+				F: "brown",
+				G: "violet",
+			};
+
+	Board.createBoardFromMap = function (mapString, isArr) {	
+
+			var lines;
+			if (isArr) {
+				lines = mapString;
+			} else {
+				lines = mapString.split("\n");
+			}
+
+
+			var line1 = lines[0].split(" ");			
+			var line2 = lines[1].split(" ");
+			b = {};
+
+			b.dimension = {
+				x: parseInt(line1[0])+2,
+				y: parseInt(line1[1])+2,
+			};
+
+
+			b.cells = [];
+
+			var defaultHeight = 25;
+    		var defaultWidth = 25;
+			var originX = 10;
+    		var originY = 10;
+    		originX += defaultWidth;
+			originY += defaultHeight;
+
+    		b.start = {
+				x:parseInt(line2[0]),
+				y:parseInt(line2[1]),
+				rect:new Kinetic.Rect({
+					x: originY + (line2[1])*defaultWidth,
+					y: originX + (line2[0])*defaultHeight,
+					width: defaultWidth,
+					height: defaultHeight,
+					fill: 'red',
+					stroke: 'black',
+					strokeWidth: 7,
+				}),
+			};
+
+			b.end = {
+				x:parseInt(line2[2]),
+				y:parseInt(line2[3]),
+				rect:new Kinetic.Rect({
+					x: originY + (line2[3])*defaultHeight,
+					y: originX + (line2[2])*defaultWidth,
+					width: defaultWidth,
+					height: defaultHeight,
+					fill: 'red',
+					stroke: 'black',
+					strokeWidth: 7,
+				}),
+			};
+
+			
+			
+			for (var i = 2; i < lines.length; i++) {
+				var row = lines[i];
+
+				var temp = [];
+				for (var j = 0; j < row.length; j++) {
+					var c = row[j];
+					var color = ColorMap[c]; 
+
+					var phisycalRect = new Kinetic.Rect({
+						x:originX + j*defaultWidth,
+						y:originY + (i-2)*defaultHeight,
+						width: defaultWidth,
+						height: defaultHeight,
+						fill: color,
+						stroke: 'black',
+						strokeWidth: 5,
+					});
+
+					phisycalRect.on('mousedown', function () {												
+						var that = this;
+						var cell = _.chain(board.cells).flatten().find(function (cell) {return cell.rect == that;});															
+						cell = cell.value();
+						L(cell);	
+
+
+						
+						var isVer = false;
+						var isHor = false;
+						if (Board.isVertical(board,cell.x,cell.y)) {
+							isVer = true;
+						} else {
+							if (Board.isHorizontal(board,cell.x,cell.y)) {
+								isHor = true;
+							};
+						}
+						if (isVer || isHor) {
+							var v = Board.isFlip(board,cell.x,cell.y,isVer);
+							L(v);
+							if (v) {
+								Board.flip(board,cell.x,cell.y,isVer);
+							} else {
+								L("not flippable");
+							}
+							
+							
+						} else {
+							L("not vertical or horizontal");
+						}
+
+						var res = Board.dfs(board,board.start.x,board.start.y);
+
+						// clear marked flags
+						_(board.cells).flatten().forEach(function (cell) {
+							cell.marked = false;
+						});
+
+						if (res) {
+							L("You Won!!!");
+							alert("You Won!!!");
+						};
+						
+												
+					});
+
+					var cell = {
+						x:i - 2,
+						y:j,
+						id:c,
+						rect: phisycalRect, 
+						flipped:false,
+						marked:false,
+					};
+
+					temp.push(cell);
+				};
+				b.cells.push(temp);
+			};	
+
+			return b;
+	};
+
+	Board.isVertical = function (board,x,y) {
+		if(board.cells[x][y].id==board.cells[x+1][y].id && board.cells[x][y].id==board.cells[x-1][y].id) {
+			return true;
+		}
+		if(board.cells[x][y].id==board.cells[x+1][y].id){
+			if(board.cells[x][y].id!=board.cells[x-1][y].id && board.cells[x][y].id!=board.cells[x][y-1].id && board.cells[x][y].id!=board.cells[x][y+1].id) {
+				return true;
+			}
+		}
+		if(board.cells[x][y].id==board.cells[x-1][y].id) {
+			if(board.cells[x][y].id!=board.cells[x+1][y].id && board.cells[x][y].id!=board.cells[x][y-1].id && board.cells[x][y].id!=board.cells[x][y+1].id) {
+				return true;
+			}
+		}
+		return false;	
+	}
+
+	Board.isHorizontal = function (board,x,y) {
+		if(board.cells[x][y].id==board.cells[x][y+1].id && board.cells[x][y].id==board.cells[x][y-1].id) {
+			return true;
+		}
+		if(board.cells[x][y].id==board.cells[x][y+1].id) {			
+			if(board.cells[x][y].id!=board.cells[x-1][y].id && board.cells[x][y].id!=board.cells[x+1][y].id && board.cells[x][y].id!=board.cells[x][y-1].id) {
+				return true;
+			}
+		}
+		if(board.cells[x][y].id==board.cells[x][y-1].id){
+			if(board.cells[x][y].id!=board.cells[x-1][y].id && board.cells[x][y].id!=board.cells[x+1][y].id && board.cells[x][y].id!=board.cells[x][y+1].id) {
+				return true;
+			}
+		}
+
+		return false;
+	};
+
+	Board.isFlip = function (board,x,y,isVertical) {
+		var r = true;
+	
+		if(isVertical){			// flip vertical
+			for(var i=1;i<board.dimension.x-1;i++){
+				for(var j=1;j<board.dimension.y-1;j++){
+					if(board.cells[i][j].id==board.cells[x][y].id)
+						if(2*y-j<=0 || 2*y-j>=board.dimension.y -1 || (board.cells[i][2*y-j].id!='.' && board.cells[i][2*y-j].id!=board.cells[x][y].id ))
+							r = false;
+				}
+			}
+		}
+		else{				// flip horizontal
+			for(var i=1;i<board.dimension.x-1;i++){
+				for(var j=1;j<board.dimension.y-1;j++){
+
+					L("i:"+i);
+					L("j:"+j);
+					if(board.cells[i][j].id==board.cells[x][y].id)
+						if(2*x-i<=0 || 2*x-i>=board.dimension.x -1 || (board.cells[2*x-i][j].id!='.' && board.cells[2*x-i][j].id!=board.cells[x][y].id))
+							r = false;
+				}
+			}
+		}
+		
+		return r;	
+	};
+
+	Board.flip = function (board,x,y,isVertical) {
+		if(isVertical){			// flip vertical
+			for(var i=1;i<board.dimension.x-1;i++){
+				for(var j=1;j<board.dimension.y-1;j++){
+					if(board.cells[i][j].id==board.cells[x][y].id && board.cells[i][j].flipped == false){
+						var oldCell = board.cells[i][j];						
+						var flippedCell = board.cells[i][2*y-j];
+						flippedCell.flipped = true;
+						var temp = flippedCell.id.slice();						
+						flippedCell.id = oldCell.id;
+						oldCell.id = temp;
+						oldCell.rect.setFill(ColorMap[oldCell.id]);
+						flippedCell.rect.setFill(ColorMap[flippedCell.id]);
+						layer.draw();												
+					}
+				}
+			}
+		}
+		else{				// flip horizontal
+			for(var i=1;i<board.dimension.x-1;i++){
+				for(var j=1;j<board.dimension.y-1;j++){
+					if(board.cells[i][j].id==board.cells[x][y].id && board.cells[i][j].flipped == false){
+						var oldCell = board.cells[i][j];						
+						var flippedCell = board.cells[2*x-i][j];
+						flippedCell.flipped = true;						
+						var temp = flippedCell.id.slice();						
+						flippedCell.id = oldCell.id;
+						oldCell.id = temp;
+						oldCell.rect.setFill(ColorMap[oldCell.id]);
+						flippedCell.rect.setFill(ColorMap[flippedCell.id]);
+						layer.draw();						
+					}
+				}
+			}
+		}
+
+		// clear flipped flags
+		_(board.cells).flatten().forEach(function (cell) {
+			cell.flipped = false;
+		});	
+	};
+
+
+
+	Board.dfs = function dfs_rec (board,x,y) {	
+		
+		if (x < 0 || x>=board.dimension.x || y <0 || y >= board.dimension.y) {
+			return false;
+		};
+		
+		var cell = board.cells[x][y];
+
+		if(x==board.end.x && y==board.end.y) {
+			return true;
+		}
+
+		if (board.start.x != x || board.start.y != y) {
+			if(cell.id=='.' || cell.id=='#' || cell.marked ) {
+				return false;
+			}	
+		}
+		
+		L("x:"+x);
+		L("y:"+y);
+	    
+		cell.marked = true;
+		var r = false;
+		r |= dfs_rec(board,x+1,y);
+		r |= dfs_rec(board,x-1,y);
+		r |= dfs_rec(board,x,y-1);
+		r |= dfs_rec(board,x,y+1);				
+		return r;
+	};
+
+
+	var canvasWidth = 600;
+	var canvasHeight = 600;
+
+	var stage = new Kinetic.Stage({
+        container: 'container',
+        width: canvasWidth,
+        height: canvasHeight,
+      });
+
+	// setting the background
+	var bgLayer = new Kinetic.Layer();	
+	bgLayer.add(new Kinetic.Rect({
+		x:0,
+		y:0,
+		width: canvasWidth,
+		height: canvasHeight,
+		fill: '#cccccc',
+		stroke: 'black',
+		strokeWidth: 10,
+	}));
+
+	// the board layer
+    var layer = new Kinetic.Layer();    
+    
+    var mapString = "8 8\n2 0 9 5\n##########\n#..A.....#\n#AAA.BBB.#\n#......B.#\n#.CC.BBB.#\n#..C.....#\n#....D...#\n#....DD..#\n#........#\n##########";
+
+    var arr = [	"10 9",
+    			"4 10 8 10",
+    			"###########",
+    			"#.........#",
+    			"#...CC....#",
+    			"#....CC...#",
+    			"#....BBB..#",
+    			"#......B..#",
+    			"#..D..DAA.#",
+    			"#..DDDD.A.#",
+    			"#....A..A.#",
+    			"#....AAAA.#",
+    			"#.........#",
+    			"###########"
+    			];
+
+
+    board = Board.createBoardFromMap(arr, true);
+
+    // draw tiles
+    _(board.cells).flatten().forEach(function (cell) {
+    	layer.add(cell.rect);
+    });
+
+    // draw start and end
+    layer.add(board.start.rect);
+    layer.add(board.end.rect);
+
+	
+	stage.add(bgLayer);
+	stage.add(layer);
+
+    
+</script>
+</body>
+</html>
